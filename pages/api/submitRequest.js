@@ -1,5 +1,10 @@
 // pages/api/submitRequest.js
-import { supabase } from '../../lib/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 export default async function handler(req, res) {
   if (req.method === 'POST') {
@@ -10,12 +15,13 @@ export default async function handler(req, res) {
       .insert([{ property, type, urgency, description, contact }]);
 
     if (error) {
-      console.error('❌ Supabase Insert Error:', error.message);
+      console.error('❌ Supabase Insert Error:', error);
       return res.status(500).json({ error: 'Failed to submit request' });
     }
 
-    return res.status(200).json({ message: '✅ Request submitted successfully', data });
+    return res.status(200).json({ message: 'Request submitted successfully', data });
+  } else {
+    return res.status(405).json({ error: 'Method Not Allowed' });
   }
-
-  return res.status(405).json({ error: 'Method Not Allowed' });
 }
+
