@@ -7,21 +7,20 @@ const supabase = createClient(
 );
 
 export default async function handler(req, res) {
-  if (req.method === 'POST') {
-    const { property, type, urgency, description, contact } = req.body;
+  if (req.method !== 'POST') return res.status(405).send('Method not allowed');
 
-    const { data, error } = await supabase
-      .from('Requests')
-      .insert([{ property, type, urgency, description, contact }]);
+  const { property, type, urgency, description, contact } = req.body;
 
-    if (error) {
-      console.error('❌ Supabase Insert Error:', error);
-      return res.status(500).json({ error: 'Failed to submit request' });
-    }
+  const { error } = await supabase.from('Requests').insert([
+    { property, type, urgency, description, contact }
+  ]);
 
-    return res.status(200).json({ message: 'Request submitted successfully', data });
-  } else {
-    return res.status(405).json({ error: 'Method Not Allowed' });
+  if (error) {
+    console.error('Supabase insert error:', error);
+    return res.status(500).json({ error: error.message });
   }
+
+  return res.status(200).json({ message: 'Request submitted successfully' });
 }
+
 
