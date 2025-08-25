@@ -1,0 +1,51 @@
+// pages/api/submitRequest.js
+import { supabase } from "../../lib/supabaseClient";
+
+/**
+ * This maps your form payload to your existing "Requests" schema:
+ * - property_address  -> property
+ * - maintenance_type  -> type
+ * - urgency           -> urgency
+ * - details           -> description
+ * - contact_name      -> contact    (we'll also append phone/email if provided)
+ * - photo_url         -> (only saved if your table has a "photo_url" column)
+ */
+export default async function handler(req, res) {
+  if (req.method !== "POST")
+    return res.status(405).json({ error: "Method not allowed" });
+
+  try {
+    const p = req.body || {};
+
+    // Build a friendly contact string
+    const contactParts = [p.contact_name, p.contact_phone, p.contact_email]
+      .filter(Boolean)
+      .join(" | ");
+
+    // Prepare row for your "Requests" table
+    const row = {
+      property: p.property_address || "",
+      type: p.maintenance_type || "",
+      urgency: p.urgency || "",
+      description: p.details || "",
+      contact: contactParts || "",
+    };
+
+    // If your "Requests" table already has a photo_url column, include it
+    if (typeof p.photo_url === "string" && p.photo_url.length > 0) {
+      row.photo_url = p.photo_url;
+    }
+
+    const { data, error } = await supabase
+      .from("Requests") // IMPORTANT: capital R
+      .insert([row])
+      .select("*")
+      .single();
+
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(200).json({ data });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: e.message || "Unexpected error" });
+  }
+}

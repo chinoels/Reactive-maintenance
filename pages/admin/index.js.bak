@@ -1,0 +1,83 @@
+// pages/admin/index.js
+import { useEffect, useState } from "react";
+
+export default function AdminDashboard() {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/getRequests");
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.error || "Failed to load requests");
+        setRequests(json.data || []);
+      } catch (e) {
+        setErr(e.message);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  if (loading) return <main className="p-6">Loading…</main>;
+  if (err) return <main className="p-6 text-red-600">Error: {err}</main>;
+
+  return (
+    <main className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Maintenance Requests</h1>
+
+      <div className="overflow-x-auto">
+        <table className="min-w-full border text-sm">
+          <thead>
+            <tr>
+              <th className="border px-2 py-1">ID</th>
+              <th className="border px-2 py-1">Property</th>
+              <th className="border px-2 py-1">Type</th>
+              <th className="border px-2 py-1">Urgency</th>
+              <th className="border px-2 py-1">Description</th>
+              <th className="border px-2 py-1">Contact</th>
+              <th className="border px-2 py-1">Photo</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {requests.map((req) => (
+              <tr key={req.id}>
+                <td className="border px-2 py-1">{req.id}</td>
+                <td className="border px-2 py-1">{req.property}</td>
+                <td className="border px-2 py-1">{req.type}</td>
+                <td className="border px-2 py-1">{req.urgency}</td>
+                <td className="border px-2 py-1">{req.description}</td>
+                <td className="border px-2 py-1">{req.contact}</td>
+                <td className="border px-2 py-1">
+                  {req.photo_url ? (
+                    <a
+                      className="underline"
+                      href={req.photo_url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      View
+                    </a>
+                  ) : (
+                    "-"
+                  )}
+                </td>
+              </tr>
+            ))}
+
+            {!requests.length && (
+              <tr>
+                <td colSpan={7} className="border px-2 py-3 text-center">
+                  No requests found.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </main>
+  );
+}

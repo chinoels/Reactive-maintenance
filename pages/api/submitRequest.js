@@ -1,32 +1,21 @@
-import { supabase } from '../../lib/supabaseClient';
+import { supabaseAdmin } from "../../lib/supabaseAdmin";
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ message: 'Method not allowed' });
-  }
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { property, type, urgency, description, contact } = req.body;
+  const p = req.body || {};
+  const contact = [p.contact_name, p.contact_phone, p.contact_email].filter(Boolean).join(" | ");
 
-  // ✅ Log the incoming request data
-  console.log('🔍 Received data:', req.body);
+  const row = {
+    property: p.property_address || "",
+    type: p.maintenance_type || "",
+    urgency: p.urgency || "",
+    description: p.details || "",
+    contact,
+    ...(p.photo_url ? { photo_url: p.photo_url } : {})
+  };
 
-  // ✅ Insert into Supabase
-  const { data, error } = await supabase.from('Requests').insert([
-    {
-      property,
-      type,
-      urgency,
-      description,
-      contact,
-    },
-  ]);
-
-  // ✅ Log Supabase response
-  console.log('📤 Supabase response:', { data, error });
-
-  if (error) {
-    return res.status(500).json({ message: 'Failed to submit request', error });
-  }
-
-  return res.status(200).json({ message: 'Request submitted successfully', data });
+  const { data, error } = await supabaseAdmin.from("Requests").insert([row]).select("*").single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(200).json({ data });
 }
