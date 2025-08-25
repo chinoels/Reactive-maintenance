@@ -1,38 +1,50 @@
-// middleware.js (project root)
+// middleware.js
 import { NextResponse } from "next/server";
+
+function unauthorized() {
+  return new Response("Authentication required", {
+    status: 401,
+    headers: { "WWW-Authenticate": 'Basic realm="Admin Area", charset="UTF-8"' },
+  });
+}
 
 export function middleware(req) {
   const { pathname } = req.nextUrl;
 
-  // Protect /admin and all subpaths
+  // Protect /admin (and subpaths). If you also want to protect APIs, add them in config.matcher below.
   const isAdminPage = pathname.startsWith("/admin");
 
-  // Optionally protect admin APIs too:
-  // const isAdminApi =
-  //   pathname.startsWith("/api/getRequests") ||
-  //   pathname.startsWith("/api/updateRequest");
-
-  if (isAdminPage /* || isAdminApi */) {
+  if (isAdminPage) {
     const auth = req.headers.get("authorization") || "";
     const [scheme, encoded] = auth.split(" ");
 
     if (scheme !== "Basic" || !encoded) {
-      return new Response("Authentication required", {
-        status: 401,
-        headers: { "WWW-Authenticate": 'Basic realm="Admin Area"' },
-      });
+      return unauthorized();
     }
 
-    const [user, pass] = Buffer.from(encoded, "base64").toString().split(":");
+    // Edge runtime: use atob instead of Buffer
+    let decoded = "";
+    try {
+      decoded = atob(encoded);
+    } catch {
+      return unauthorized();
+    }
 
-    const okUser = process.env.ADMIN_USER || "";
-    const okPass = process.env.ADMIN_PASS || "";
+    const idx = decoded.indexOf(":");
+    if (idx === -1) return unauthorized();
+    const user = decoded.slice(0, idx).trim();
+    const pass = decoded.slice(idx + 1).trim();
+
+    const okUser = (process.env.ADMIN_USER || "").trim();
+    const okPass = (process.env.ADMIN_PASS || "").trim();
+
+    if (!okUser || !okPass) {
+      // Env not set on Vercel → block by default
+      return new Response("Admin credentials not configured", { status: 500 });
+    }
 
     if (user !== okUser || pass !== okPass) {
-      return new Response("Access denied", {
-        status: 401,
-        headers: { "WWW-Authenticate": 'Basic realm="Admin Area"' },
-      });
+      return unauthorized();
     }
   }
 
@@ -42,7 +54,8 @@ export function middleware(req) {
 export const config = {
   matcher: [
     "/admin/:path*", // protect admin UI
-    // "/api/getRequests", // <- uncomment to protect these APIs too
+    // If you later want to protect admin APIs too, uncomment:
+    // "/api/getRequests",
     // "/api/updateRequest",
   ],
 };
